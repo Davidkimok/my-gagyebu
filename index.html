@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Expensetracker">
+  <meta name="theme-color" content="#059669">
+  <title>Expensetracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    :root {
+      --bg: #FDFBF7;
+      --card-bg: #FFFFFF;
+      --text: #1F2937;
+      --subtext: #6B7280;
+      --border: #E5E7EB;
+      --primary: #059669;
+      --primary-light: #ECFDF5;
+      --danger: #EF4444;
+      --warning: #F59E0B;
+      --font-base: 18px;
+    }
+    [data-theme="dark"] {
+      --bg: #111827;
+      --card-bg: #1F2937;
+      --text: #F9FAFB;
+      --subtext: #9CA3AF;
+      --border: #374151;
+      --primary: #10B981;
+      --primary-light: #064E3B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: #E5E7EB; color: var(--text); font-size: var(--font-base); display: flex; justify-content: center; min-height: 100vh; }
+    #app-shell { width: 100%; max-width: 560px; background: var(--bg); display: flex; flex-direction: column; min-height: 100vh; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding-bottom: calc(75px + env(safe-area-inset-bottom)); }
+    .header { padding: 16px; background: var(--card-bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .header h1 { font-size: 20px; color: var(--primary); font-weight: 700; }
+    .main-content { padding: 16px; flex: 1; }
+    .card { background: var(--card-bg); border-radius: 10px; padding: 16px; margin-bottom: 14px; border: 1px solid var(--border); }
+    .btn { min-height: 52px; padding: 0 16px; border-radius: 10px; border: none; font-size: 18px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-sm { min-height: 38px; font-size: 14px; padding: 0 12px; width: auto; }
+    input, select, textarea { width: 100%; min-height: 48px; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 18px; margin-bottom: 12px; }
+    .amount-text { font-size: 24px; font-weight: 700; color: var(--primary); }
+    .nav-bar { position: fixed; bottom: 0; width: 100%; max-width: 560px; height: calc(65px + env(safe-area-inset-bottom)); background: var(--card-bg); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); z-index: 20; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; font-size: 12px; color: var(--subtext); cursor: pointer; background: none; border: none; flex: 1; }
+    .nav-item.active { color: var(--primary); font-weight: bold; }
+    .nav-add-btn { width: 52px; height: 52px; border-radius: 50%; background: var(--primary); color: #fff; font-size: 28px; display: flex; align-items: center; justify-content: center; margin-top: -24px; border: 4px solid var(--card-bg); cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    .sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 30; display: none; align-items: flex-end; justify-content: center; }
+    .sheet-overlay.active { display: flex; }
+    .sheet-content { width: 100%; max-width: 560px; background: var(--card-bg); border-radius: 16px 16px 0 0; padding: 20px; max-height: 85vh; overflow-y: auto; animation: slideUp 0.25s ease-out; }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .chip-group { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 12px; }
+    .chip { padding: 6px 12px; border-radius: 20px; background: var(--bg); border: 1px solid var(--border); font-size: 14px; white-space: nowrap; cursor: pointer; }
+    .chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 20px; border-radius: 25px; font-size: 15px; z-index: 99; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .toast.show { opacity: 1; }
+    .month-picker { display: flex; align-items: center; justify-content: space-between; font-weight: bold; margin-bottom: 12px; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+    .calendar-cell { min-height: 54px; border-radius: 6px; border: 1px solid var(--border); padding: 2px; font-size: 12px; }
+    .pin-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+    .pin-dots { display: flex; gap: 15px; }
+    .pin-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--primary); }
+    .pin-dot.filled { background: var(--primary); }
+    .pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; width: 240px; }
+    .pin-btn { width: 65px; height: 65px; border-radius: 50%; border: 1px solid var(--border); background: var(--card-bg); font-size: 24px; cursor: pointer; }
+    .progress-bar { height: 10px; background: var(--border); border-radius: 5px; overflow: hidden; margin-top: 6px; }
+    .progress-fill { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
+  </style>
+</head>
+<body>
+  <div id="app-shell">
+    <div id="pwa-banner" class="card" style="display:none; background:var(--primary-light); margin:8px; font-size:14px; text-align:center;">
+      💡 홈 화면에 추가한 뒤 사용하세요! (사파리와 홈 화면 저장소 별도)
+    </div>
+    <div class="header">
+      <h1 id="app-title">Expensetracker</h1>
+      <button class="btn btn-sm btn-secondary" onclick="app.toggleTheme()">🌓 모드</button>
+    </div>
+    <div id="main-view" class="main-content"></div>
+    <nav class="nav-bar">
+      <button class="nav-item active" onclick="app.navigate('home')">🏠<br>홈</button>
+      <button class="nav-item" onclick="app.navigate('list')">📋<br>내역</button>
+      <button class="nav-add-btn" onclick="app.openAddSheet()">＋</button>
+      <button class="nav-item" onclick="app.navigate('stats')">📊<br>통계</button>
+      <button class="nav-item" onclick="app.navigate('settings')">⚙️<br>설정</button>
+    </nav>
+  </div>
+
+  <div id="action-sheet" class="sheet-overlay" onclick="if(event.target===this) app.closeAddSheet()">
+    <div class="sheet-content">
+      <div style="font-weight:bold; margin-bottom:10px;">⚡ Quick 한 줄 입력</div>
+      <div style="display:flex; gap:6px;">
+        <input type="text" id="quick-input" placeholder="예: 어제 점심 12000원 김밥천국" onkeydown="if(event.key==='Enter') app.processQuickInput()">
+        <button class="btn btn-primary btn-sm" onclick="app.processQuickInput()">등록</button>
+      </div>
+      <div style="font-size:12px; color:var(--subtext); margin:-6px 0 14px 0;">🎤 키보드의 마이크 버튼을 누르고 말하면 글자로 바뀌어요</div>
+      <hr style="border:none; border-top:1px solid var(--border); margin-bottom:14px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <button class="btn btn-secondary" onclick="app.triggerCamera()">📷 영수증 촬영</button>
+        <button class="btn btn-secondary" onclick="app.triggerGallery()">🖼️ 사진 불러오기</button>
+        <button class="btn btn-secondary" onclick="app.openPasteSMS()">💬 문자 붙여넣기</button>
+        <button class="btn btn-primary" onclick="app.openEditForm()">✏️ 직접 입력</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-sheet" class="sheet-overlay">
+    <div class="sheet-content" id="modal-body"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div id="pin-screen" class="pin-overlay" style="display:none;">
+    <h3>🔒 PIN 번호 입력</h3>
+    <div class="pin-dots">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="pin-pad" id="pin-pad"></div>
+  </div>
+
+  <input type="file" id="file-cam" accept="image/*" capture="environment" style="display:none" onchange="app.handleImageUpload(event)">
+  <input type="file" id="file-gal" accept="image/*" multiple style="display:none" onchange="app.handleImageUpload(event)">
+  <input type="file" id="file-json" accept=".json" style="display:none" onchange="app.importBackup(event)">
+  <input type="file" id="file-csv" accept=".csv" style="display:none" onchange="app.importCSV(event)">
+
+  <script>
+    const escapeHTML = str => String(str || '').replace(/[&<>'"]/g, tag => ({'&':'&amp;','<':'&lt;','>':'&gt;','\'':'&#39;','"':'&quot;'}[tag] || tag));
+    const formatNum = n => Number(n || 0).toLocaleString();
+    const formatDate = dStr => {
+      const d = new Date(dStr);
+      const days = ['일','월','화','수','목','금','토'];
+      return `${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+    };
+    async function sha256(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
+    const app = {
+      data: {
+        records: [],
+        categories: {
+          expense: ['🍽️ 식비', '☕ 카페·간식', '🚌 교통', '🛍️ 쇼핑', '💄 패션·미용', '🛒 생활·마트', '🏠 주거·통신', '🏥 의료·건강', '🎬 문화·여가', '📚 교육·도서', '🎁 경조사·선물', '📦 기타'],
+          income: ['💰 급여', '💵 용돈', '🪙 기타수입']
+        },
+        budgets: { total: 0, cats: {} },
+        recurring: [],
+        autoRules: {},
+        ignoredRepeat: [],
+        pin: null,
+        theme: 'auto',
+        aiConfig: { provider: 'none', geminiKey: '', geminiModel: 'gemini-3.5-flash', claudeKey: '', claudeModel: 'claude-haiku-5-5' }
+      },
+      currentTab: 'home',
+      currentMonth: new Date().toISOString().substring(0, 7),
+      listMode: 'list',
+      filterCat: 'ALL',
+      filterPay: 'ALL',
+      searchQuery: '',
+      pendingImages: [],
+      pinInput: '',
+      lastLeaveTime: 0,
+
+      init() {
+        this.loadStorage();
+        this.checkPWA();
+        this.applyTheme();
+        this.processRecurring();
+        this.checkRepeatExpenses();
+        this.render();
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) this.lastLeaveTime = Date.now();
+          else if (this.data.pin && Date.now() - this.lastLeaveTime > 60000) this.showPinLock();
+        });
+
+        if (this.data.pin) this.showPinLock();
+      },
+
+      loadStorage() {
+        const stored = localStorage.getItem('et_data');
+        if (stored) {
+          try { this.data = { ...this.data, ...JSON.parse(stored) }; } catch(e){}
+        }
+      },
+      saveStorage() {
+        try {
+          localStorage.setItem('et_data', JSON.stringify(this.data));
+        } catch (e) {
+          this.toast('🚨 저장 공간이 부족하여 오래된 영수증 이미지를 정리합니다.');
+          this.data.records.filter(r => r.thumb).sort((a,b)=>a.createdAt-b.createdAt).slice(0, 5).forEach(r => delete r.thumb);
+          localStorage.setItem('et_data', JSON.stringify(this.data));
+        }
+      },
+      toast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+      },
+
+      checkPWA() {
+        const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
+        const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+        if (isIos && !isStandalone) document.getElementById('pwa-banner').style.display = 'block';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 180; canvas.height = 180;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#059669'; ctx.fillRect(0, 0, 180, 180);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 90px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('💰', 90, 95);
+        const iconUrl = canvas.toDataURL();
+        
+        let link = document.querySelector("link[rel*='apple-touch-icon']");
+        if (!link) { link = document.createElement('link'); link.rel = 'apple-touch-icon'; document.head.appendChild(link); }
+        link.href = iconUrl;
+      },
+
+      applyTheme() {
+        let theme = this.data.theme;
+        if (theme === 'auto') theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+      },
+      toggleTheme() {
+        const modes = ['auto', 'light', 'dark'];
+        this.data.theme = modes[(modes.indexOf(this.data.theme) + 1) % modes.length];
+        this.saveStorage(); this.applyTheme();
+        this.toast(`화면 모드: ${this.data.theme}`);
+      },
+
+      navigate(tab) {
+        this.currentTab = tab;
+        document.querySelectorAll('.nav-item').forEach((btn, idx) => {
+          btn.classList.toggle('active', ['home','list','add','stats','settings'][idx] === tab);
+        });
+        this.render();
+      },
+
+      render() {
+        const view = document.getElementById('main-view');
+        if (this.currentTab === 'home') view.innerHTML = this.renderHome();
+        else if (this.currentTab === 'list') view.innerHTML = this.renderList();
+        else if (this.currentTab === 'stats') view.innerHTML = this.renderStats();
+        else if (this.currentTab === 'settings') view.innerHTML = this.renderSettings();
+      },
+
+      renderHome() {
+        const monthRecs = this.data.records.filter(r => r.date.startsWith(this.currentMonth));
+        const expSum = monthRecs.filter(r => r.type === 'expense').reduce((s, r) => s + r.amount, 0);
+        const incSum = monthRecs.filter(r => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+
+        const prevMonthStr = this.getShiftedMonth(-1);
+        const prevExpSum = this.data.records.filter(r => r.date.startsWith(prevMonthStr) && r.type === 'expense').reduce((s, r) => s + r.amount, 0);
+        let diffPctText = '전월 내역 없음';
+        if (prevExpSum > 0) {
+          const diffPct = (((expSum - prevExpSum) / prevExpSum) * 100).toFixed(1);
+          diffPctText = `전월 대비 ${diffPct >= 0 ? '+' + diffPct : diffPct}%`;
+        }
+
+        const catMap = {};
+        monthRecs.filter(r => r.type === 'expense').forEach(r => catMap[r.cat] = (catMap[r.cat] || 0) + r.amount);
+        const top3 = Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
+        const budgetTotal = this.data.budgets.total || 0;
+        const budgetPct = budgetTotal > 0 ? Math.min(100, Math.round((expSum / budgetTotal) * 100)) : 0;
+        let budgetBarColor = 'var(--primary)';
+        if (budgetPct >= 100) budgetBarColor = 'var(--danger)';
+        else if (budgetPct >= 80) budgetBarColor = 'var(--warning)';
+
+        const recent5 = [...this.data.records].sort((a,b)=>new Date(b.date)-new Date(a.date) || b.createdAt-a.createdAt).slice(0, 5);
+        const repeatAlerts = this.getRepeatAlerts();
+
+        return `
+          <div class="month-picker card">
+            <button class="btn btn-sm btn-secondary" onclick="app.shiftMonth(-1)">‹ 이전달</button>
+            <span>${this.currentMonth.replace('-','년 ')}월</span>
+            <button class="btn btn-sm btn-secondary" onclick="app.shiftMonth(1)">다음달 ›</button>
+          </div>
+
+          ${repeatAlerts.length ? repeatAlerts.map(r => `
+            <div class="card" style="border-left: 5px solid var(--warning);">
+              <div style="font-weight:bold; font-size:15px;">🔁 반복 결제로 보여요</div>
+              <div style="font-size:14px; margin:4px 0;">${escapeHTML(r.merchant)} (${formatNum(r.amount)}원)</div>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-sm btn-primary" onclick="app.acceptRepeat('${escapeHTML(r.merchant)}', ${r.amount}, '${escapeHTML(r.cat)}')">고정지출 등록</button>
+                <button class="btn btn-sm btn-secondary" onclick="app.ignoreRepeat('${escapeHTML(r.merchant)}')">무시</button>
+              </div>
+            </div>
+          `).join('') : ''}
+
+          <div class="card">
+            <div style="font-size:14px; color:var(--subtext);">이번 달 지출</div>
+            <div class="amount-text">${formatNum(expSum)}원</div>
+            <div style="font-size:13px; color:var(--subtext); margin-top:4px;">${diffPctText}</div>
+            <hr style="border:none; border-top:1px solid var(--border); margin:12px 0;">
+            <div style="display:flex; justify-content:space-between; font-size:15px;">
+              <span>수입: <strong style="color:var(--primary);">${formatNum(incSum)}원</strong></span>
+              <span>순수익: <strong>${formatNum(incSum - expSum)}원</strong></span>
+            </div>
+            ${budgetTotal > 0 ? `
+              <div style="margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; font-size:13px;">
+                  <span>월 예산 진행률 (${budgetPct}%)</span>
+                  <span>${formatNum(expSum)} / ${formatNum(budgetTotal)}원</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" style="width:${budgetPct}%; background:${budgetBarColor};"></div></div>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:8px; font-size:16px;">🔥 많이 쓴 카테고리 TOP 3</div>
+            ${top3.length ? top3.map(([cat, amt], i) => `
+              <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:15px;">
+                <span>${i+1}. ${escapeHTML(cat)}</span>
+                <strong>${formatNum(amt)}원</strong>
+              </div>
+            `).join('') : '<div style="font-size:14px; color:var(--subtext);">지출 내역이 없습니다.</div>'}
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:10px; font-size:16px;">🕒 최근 내역</div>
+            ${recent5.length ? recent5.map(r => this.renderRecordItem(r)).join('') : '<div style="font-size:14px; color:var(--subtext);">내역이 없습니다.</div>'}
+          </div>
+        `;
+      },
+
+      renderList() {
+        let recs = this.data.records.filter(r => r.date.startsWith(this.currentMonth));
+        if (this.filterCat !== 'ALL') recs = recs.filter(r => r.cat === this.filterCat);
+        if (this.filterPay !== 'ALL') recs = recs.filter(r => r.payment === this.filterPay);
+        if (this.searchQuery) {
+          const q = this.searchQuery.toLowerCase();
+          recs = recs.filter(r => r.merchant.toLowerCase().includes(q) || (r.memo && r.memo.toLowerCase().includes(q)) || String(r.amount).includes(q));
+        }
+
+        const allCats = [...this.data.categories.expense, ...this.data.categories.income];
+        const payTypes = ['카드','현금','계좌이체','간편결제'];
+
+        return `
+          <div class="month-picker card">
+            <button class="btn btn-sm btn-secondary" onclick="app.shiftMonth(-1)">‹ 이전달</button>
+            <span>${this.currentMonth.replace('-','년 ')}월</span>
+            <button class="btn btn-sm btn-secondary" onclick="app.shiftMonth(1)">다음달 ›</button>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <button class="btn btn-sm ${this.listMode==='list'?'btn-primary':'btn-secondary'}" style="flex:1" onclick="app.listMode='list';app.render();">📋 목록 보기</button>
+            <button class="btn btn-sm ${this.listMode==='cal'?'btn-primary':'btn-secondary'}" style="flex:1" onclick="app.listMode='cal';app.render();">📅 달력 보기</button>
+          </div>
+
+          ${this.listMode === 'list' ? `
+            <input type="text" placeholder="🔍 사용처, 메모, 금액 검색" value="${escapeHTML(this.searchQuery)}" oninput="app.searchQuery=this.value; app.render();">
+            <div class="chip-group">
+              <span class="chip ${this.filterCat==='ALL'?'active':''}" onclick="app.filterCat='ALL'; app.render();">전체 카테고리</span>
+              ${allCats.map(c => `<span class="chip ${this.filterCat===c?'active':''}" onclick="app.filterCat='${escapeHTML(c)}'; app.render();">${escapeHTML(c)}</span>`).join('')}
+            </div>
+            <div class="chip-group">
+              <span class="chip ${this.filterPay==='ALL'?'active':''}" onclick="app.filterPay='ALL'; app.render();">전체 결제수단</span>
+              ${payTypes.map(p => `<span class="chip ${this.filterPay===p?'active':''}" onclick="app.filterPay='${escapeHTML(p)}'; app.render();">${escapeHTML(p)}</span>`).join('')}
+            </div>
+            ${this.renderGroupedList(recs)}
+          ` : this.renderCalendar()}
+        `;
+      },
+
+      renderGroupedList(recs) {
+        if (!recs.length) return '<div class="card" style="text-align:center; color:var(--subtext);">내역이 없습니다.</div>';
+        const groups = {};
+        recs.forEach(r => { groups[r.date] = groups[r.date] || []; groups[r.date].push(r); });
+        const sortedDates = Object.keys(groups).sort((a,b) => new Date(b) - new Date(a));
+
+        return sortedDates.map(d => {
+          const dayExp = groups[d].filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
+          const dayInc = groups[d].filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
+          return `
+            <div style="margin-bottom:12px;">
+              <div style="display:flex; justify-content:space-between; font-size:14px; font-weight:bold; padding:4px 8px; color:var(--subtext);">
+                <span>${formatDate(d)}</span>
+                <span>${dayInc?'+'+formatNum(dayInc)+'원 ':''}${dayExp?'-'+formatNum(dayExp)+'원':''}</span>
+              </div>
+              <div class="card" style="padding:4px 12px;">
+                ${groups[d].map(r => this.renderRecordItem(r)).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      },
+
+      renderRecordItem(r) {
+        const isExp = r.type === 'expense';
+        const smsBadge = r.source === 'sms' ? '💬 ' : '';
+        return `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); cursor:pointer;" onclick="app.openEditForm('${r.id}')">
+            <div>
+              <div style="font-weight:600; font-size:16px;">${smsBadge}${escapeHTML(r.merchant)}</div>
+              <div style="font-size:12px; color:var(--subtext);">${escapeHTML(r.cat)} · ${escapeHTML(r.payment)}${r.memo ? ' · ' + escapeHTML(r.memo) : ''}</div>
+            </div>
+            <div style="font-weight:bold; font-size:16px; color:${isExp?'var(--text)':'var(--primary)'}">
+              ${isExp ? '-' : '+'}${formatNum(r.amount)}원
+            </div>
+          </div>
+        `;
+      },
+
+      renderCalendar() {
+        const [y, m] = this.currentMonth.split('-').map(Number);
+        const firstDay = new Date(y, m - 1, 1).getDay();
+        const lastDate = new Date(y, m, 0).getDate();
+        
+        const daySums = {};
+        let maxExp = 0;
+        this.data.records.filter(r => r.date.startsWith(this.currentMonth) && r.type === 'expense').forEach(r => {
+          const d = parseInt(r.date.split('-')[2]);
+          daySums[d] = (daySums[d] || 0) + r.amount;
+          if (daySums[d] > maxExp) maxExp = daySums[d];
+        });
+
+        let html = '<div class="card"><div class="calendar-grid" style="font-weight:bold; margin-bottom:6px;"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div><div class="calendar-grid">';
+        for (let i = 0; i < firstDay; i++) html += '<div></div>';
+        
+        for (let d = 1; d <= lastDate; d++) {
+          const sum = daySums[d] || 0;
+          let alpha = maxExp > 0 && sum > 0 ? (sum / maxExp) * 0.4 + 0.1 : 0;
+          let sumText = sum > 0 ? (sum >= 10000 ? (sum/10000).toFixed(1)+'만' : Math.round(sum/1000)+'천') : '';
+          html += `
+            <div class="calendar-cell" style="background: rgba(5, 150, 105, ${alpha});" onclick="app.showDayDetail(${d})">
+              <div style="font-weight:600;">${d}</div>
+              <div style="font-size:10px; color:var(--danger); font-weight:bold; margin-top:2px;">${sumText}</div>
+            </div>
+          `;
+        }
+        html += '</div></div><div id="day-detail-container"></div>';
+        return html;
+      },
+
+      showDayDetail(day) {
+        const dStr = `${this.currentMonth}-${String(day).padStart(2,'0')}`;
+        const recs = this.data.records.filter(r => r.date === dStr);
+        const container = document.getElementById('day-detail-container');
+        if (!container) return;
+        container.innerHTML = `
+          <div class="card" style="margin-top:10px;">
+            <div style="font-weight:bold; margin-bottom:8px;">📌 ${formatDate(dStr)} 내역</div>
+            ${recs.length ? recs.map(r => this.renderRecordItem(r)).join('') : '<div style="font-size:14px; color:var(--subtext);">내역이 없습니다.</div>'}
+          </div>
+        `;
+      },
+
+      renderStats() {
+        const expRecs = this.data.records.filter(r => r.date.startsWith(this.currentMonth) && r.type === 'expense');
+        const totalExp = expRecs.reduce((s, r) => s + r.amount, 0);
+
+        const catMap = {};
+        expRecs.forEach(r => catMap[r.cat] = (catMap[r.cat] || 0) + r.amount);
+        const catSorted = Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
+
+        const payMap = {};
+        expRecs.forEach(r => payMap[r.payment] = (payMap[r.payment] || 0) + r.amount);
+        const paySorted = Object.entries(payMap).sort((a,b)=>b[1]-a[1]);
+
+        const merchantMap = {};
+        expRecs.forEach(r => merchantMap[r.merchant] = (merchantMap[r.merchant] || 0) + r.amount);
+        const top5Merchants = Object.entries(merchantMap).sort((a,b)=>b[1]-a[1]).slice(0, 5);
+
+        // 6개월 바 차트 데이터
+        const months6 = [];
+        for (let i = 5; i >= 0; i--) months6.push(this.getShiftedMonth(-i));
+        const monthTotals = months6.map(m => {
+          return this.data.records.filter(r => r.date.startsWith(m) && r.type === 'expense').reduce((s,r)=>s+r.amount,0);
+        });
+        const maxMTotal = Math.max(...monthTotals, 1);
+
+        return `
+          <div class="month-picker card">
+            <button class="btn btn-sm btn-secondary" onclick="app.shiftMonth(-1)">‹ 이전달</button>
+            <span>${this.currentMonth.replace('-','년 ')}월 통계</span>
+            <button class="btn btn-sm btn-secondary" onclick="app.shiftMonth(1)">다음달 ›</button>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:10px;">🍩 카테고리별 지출</div>
+            ${totalExp > 0 ? this.renderDonutChart(catSorted, totalExp) : '<div style="color:var(--subtext);">지출 내역이 없습니다.</div>'}
+            <div id="cat-detail-box" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:12px;">📊 최근 6개월 지출 추이</div>
+            <div style="display:flex; align-items:flex-end; height:120px; gap:8px; padding-top:10px;">
+              ${months6.map((m, i) => {
+                const h = Math.round((monthTotals[i] / maxMTotal) * 90);
+                return `
+                  <div style="flex:1; display:flex; flex-direction:column; align-items:center; cursor:pointer;" onclick="app.currentMonth='${m}'; app.render();">
+                    <div style="font-size:10px; color:var(--subtext);">${monthTotals[i]>0?Math.round(monthTotals[i]/10000)+'만':''}</div>
+                    <div style="width:100%; max-width:24px; height:${h}px; background:var(--primary); border-radius:4px 4px 0 0;"></div>
+                    <div style="font-size:11px; margin-top:4px;">${m.split('-')[1]}월</div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:8px;">🏆 가장 많이 쓴 곳 TOP 5</div>
+            ${top5Merchants.length ? top5Merchants.map(([m, amt], i) => `
+              <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:15px;">
+                <span>${i+1}. ${escapeHTML(m)}</span>
+                <strong>${formatNum(amt)}원</strong>
+              </div>
+            `).join('') : '<div style="color:var(--subtext);">내역이 없습니다.</div>'}
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:8px;">💳 결제수단 비율</div>
+            ${paySorted.map(([p, amt]) => {
+              const pct = Math.round((amt / totalExp) * 100);
+              return `
+                <div style="margin-bottom:8px; font-size:14px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span>${escapeHTML(p)} (${pct}%)</span>
+                    <span>${formatNum(amt)}원</span>
+                  </div>
+                  <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;"></div></div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:8px;">🎯 카테고리 예산 대비 진행바</div>
+            ${Object.keys(this.data.budgets.cats || {}).length ? Object.entries(this.data.budgets.cats).map(([cat, bAmt]) => {
+              const used = catMap[cat] || 0;
+              const pct = bAmt > 0 ? Math.min(100, Math.round((used / bAmt) * 100)) : 0;
+              return `
+                <div style="margin-bottom:8px; font-size:14px;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span>${escapeHTML(cat)}</span>
+                    <span>${formatNum(used)} / ${formatNum(bAmt)}원 (${pct}%)</span>
+                  </div>
+                  <div class="progress-bar"><div class="progress-fill" style="width:${pct}%; background:${pct>=100?'var(--danger)':pct>=80?'var(--warning)':'var(--primary)'}"></div></div>
+                </div>
+              `;
+            }).join('') : '<div style="font-size:14px; color:var(--subtext);">설정된 카테고리 예산이 없습니다.</div>'}
+          </div>
+        `;
+      },
+
+      renderDonutChart(catSorted, totalExp) {
+        const colors = ['#059669', '#3B82F6', '#F59E0B', '#EC4899', '#8B5CF6', '#10B981', '#6366F1', '#F97316'];
+        let cumulativePercent = 0;
+        const slices = catSorted.map(([cat, amt], i) => {
+          const pct = amt / totalExp;
+          const startAngle = cumulativePercent * 2 * Math.PI;
+          cumulativePercent += pct;
+          const endAngle = cumulativePercent * 2 * Math.PI;
+          
+          const x1 = 100 + 70 * Math.cos(startAngle);
+          const y1 = 100 + 70 * Math.sin(startAngle);
+          const x2 = 100 + 70 * Math.cos(endAngle);
+          const y2 = 100 + 70 * Math.sin(endAngle);
+          const largeArc = pct > 0.5 ? 1 : 0;
+          const color = colors[i % colors.length];
+
+          const pathData = `M 100 100 L ${x1} ${y1} A 70 70 0 ${largeArc} 1 ${x2} ${y2} Z`;
+          return { cat, amt, pct, pathData, color };
+        });
+
+        return `
+          <div style="display:flex; flex-direction:column; align-items:center;">
+            <svg viewBox="0 0 200 200" style="width:180px; height:180px;">
+              ${slices.map(s => `
+                <path d="${s.pathData}" fill="${s.color}" onclick="app.selectDonutCat('${escapeHTML(s.cat)}', ${s.amt}, ${Math.round(s.pct*100)})" style="cursor:pointer; stroke:var(--card-bg); stroke-width:2;"></path>
+              `).join('')}
+              <circle cx="100" cy="100" r="45" fill="var(--card-bg)"/>
+            </svg>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:10px;">
+              ${slices.map(s => `
+                <span class="chip" style="border-left:4px solid ${s.color}" onclick="app.selectDonutCat('${escapeHTML(s.cat)}', ${s.amt}, ${Math.round(s.pct*100)})">
+                  ${escapeHTML(s.cat)} (${Math.round(s.pct*100)}%)
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      },
+
+      selectDonutCat(cat, amt, pct) {
+        const top5 = this.data.records
+          .filter(r => r.date.startsWith(this.currentMonth) && r.cat === cat && r.type === 'expense')
+          .sort((a,b)=>b.amount-a.amount).slice(0, 5);
+
+        document.getElementById('cat-detail-box').innerHTML = `
+          <div class="card" style="background:var(--bg); margin-top:10px;">
+            <div style="font-weight:bold;">${cat} - ${pct}% (${formatNum(amt)}원)</div>
+            <div style="font-size:13px; font-weight:bold; margin:6px 0 4px 0; color:var(--subtext);">이 카테고리 큰 지출 TOP 5</div>
+            ${top5.map(r => `
+              <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px;">
+                <span>${escapeHTML(r.merchant)} (${r.date})</span>
+                <strong>${formatNum(r.amount)}원</strong>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      },
+
+      renderSettings() {
+        return `
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:10px;">🤖 AI & OCR 인식 설정</div>
+            <label style="font-size:14px;">인식 방식 선택</label>
+            <select id="setting-ai-provider" onchange="app.saveSettings()">
+              <option value="none" ${this.data.aiConfig.provider==='none'?'selected':''}>사용 안 함</option>
+              <option value="gemini" ${this.data.aiConfig.provider==='gemini'?'selected':''}>Gemini API</option>
+              <option value="claude" ${this.data.aiConfig.provider==='claude'?'selected':''}>Claude API</option>
+              <option value="ocr" ${this.data.aiConfig.provider==='ocr'?'selected':''}>기기 내 OCR (Tesseract)</option>
+            </select>
+            
+            <input type="password" id="setting-gemini-key" placeholder="Gemini API Key" value="${escapeHTML(this.data.aiConfig.geminiKey)}" onchange="app.saveSettings()">
+            <input type="text" id="setting-gemini-model" placeholder="Gemini 모델 이름" value="${escapeHTML(this.data.aiConfig.geminiModel)}" onchange="app.saveSettings()">
+
+            <input type="password" id="setting-claude-key" placeholder="Claude API Key" value="${escapeHTML(this.data.aiConfig.claudeKey)}" onchange="app.saveSettings()">
+            <input type="text" id="setting-claude-model" placeholder="Claude 모델 이름" value="${escapeHTML(this.data.aiConfig.claudeModel)}" onchange="app.saveSettings()">
+
+            <button class="btn btn-sm btn-secondary" onclick="app.testAIConnection()">🔌 API 연결 테스트</button>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:10px;">🎯 예산 설정</div>
+            <label style="font-size:14px;">월 총예산 (원)</label>
+            <input type="number" id="setting-budget-total" value="${this.data.budgets.total||''}" placeholder="0" onchange="app.saveBudgets()">
+            <div style="font-weight:600; font-size:14px; margin-bottom:6px;">카테고리별 예산</div>
+            ${this.data.categories.expense.map(c => `
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <span style="font-size:13px; flex:1;">${escapeHTML(c)}</span>
+                <input type="number" style="width:120px; min-height:36px; margin:0; font-size:14px;" value="${this.data.budgets.cats[c]||''}" placeholder="0" onchange="app.saveCatBudget('${escapeHTML(c)}', this.value)">
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:10px;">🔄 고정지출 / 구독 관리</div>
+            <button class="btn btn-sm btn-secondary" onclick="app.openAddRecurringModal()">+ 고정지출 추가</button>
+            <div style="margin-top:10px;">
+              ${this.data.recurring.map((rec, i) => `
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; padding:6px 0; border-bottom:1px solid var(--border);">
+                  <div>
+                    <strong>${escapeHTML(rec.merchant)}</strong> (${formatNum(rec.amount)}원)<br>
+                    <span style="font-size:12px; color:var(--subtext);">매월 ${rec.day}일 · ${escapeHTML(rec.cat)}</span>
+                  </div>
+                  <button class="btn btn-sm btn-danger" onclick="app.deleteRecurring(${i})">삭제</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:10px;">📂 카테고리 관리</div>
+            <button class="btn btn-sm btn-secondary" onclick="app.openManageCatModal()">카테고리 추가 / 삭제</button>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:10px;">🧠 가맹점 자동 분류 학습 목록</div>
+            <div style="max-height:150px; overflow-y:auto; font-size:13px;">
+              ${Object.entries(this.data.autoRules).map(([m, c]) => `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span>${escapeHTML(m)} → <strong>${escapeHTML(c)}</strong></span>
+                  <button class="btn btn-sm btn-danger" style="padding:2px 6px; min-height:26px; font-size:11px;" onclick="delete app.data.autoRules['${escapeHTML(m)}']; app.saveStorage(); app.render();">지우기</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:10px;">🔒 PIN 잠금 설정</div>
+            <button class="btn btn-sm ${this.data.pin?'btn-danger':'btn-primary'}" onclick="app.togglePinSetup()">
+              ${this.data.pin ? 'PIN 잠금 해제/삭제' : '4자리 PIN 설정하기'}
+            </button>
+          </div>
+
+          <div class="card">
+            <div style="font-weight:bold; margin-bottom:10px;">💾 백업 & 복원</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <button class="btn btn-sm btn-secondary" onclick="app.exportCSV()">CSV 내보내기</button>
+              <button class="btn btn-sm btn-secondary" onclick="document.getElementById('file-csv').click()">CSV 가져오기</button>
+              <button class="btn btn-sm btn-secondary" onclick="app.exportBackup()">JSON 전체 백업</button>
+              <button class="btn btn-sm btn-secondary" onclick="document.getElementById('file-json').click()">JSON 복원</button>
+            </div>
+          </div>
+
+          <div class="card" style="border:1px solid var(--danger);">
+            <div style="font-weight:bold; color:var(--danger); margin-bottom:10px;">🧪 연습용 / 데이터 관리</div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-sm btn-secondary" style="flex:1" onclick="app.seedSampleData()">샘플 데이터 넣기</button>
+              <button class="btn btn-sm btn-danger" style="flex:1" onclick="app.clearAllData()">모든 데이터 삭제</button>
+            </div>
+          </div>
+        `;
+      },
+
+      saveSettings() {
+        this.data.aiConfig.provider = document.getElementById('setting-ai-provider').value;
+        this.data.aiConfig.geminiKey = document.getElementById('setting-gemini-key').value;
+        this.data.aiConfig.geminiModel = document.getElementById('setting-gemini-model').value;
+        this.data.aiConfig.claudeKey = document.getElementById('setting-claude-key').value;
+        this.data.aiConfig.claudeModel = document.getElementById('setting-claude-model').value;
+        this.saveStorage();
+      },
+
+      saveBudgets() {
+        this.data.budgets.total = Number(document.getElementById('setting-budget-total').value || 0);
+        this.saveStorage();
+      },
+      saveCatBudget(cat, val) {
+        this.data.budgets.cats[cat] = Number(val || 0);
+        this.saveStorage();
+      },
+
+      openAddSheet() { document.getElementById('action-sheet').classList.add('active'); },
+      closeAddSheet() { document.getElementById('action-sheet').classList.remove('active'); },
+
+      openEditForm(recordId = null) {
+        this.closeAddSheet();
+        let r = { id: '', type: 'expense', date: new Date().toISOString().substring(0,10), merchant: '', amount: '', cat: this.data.categories.expense[0], payment: '카드', memo: '', source: 'manual' };
+        if (recordId) {
+          const found = this.data.records.find(x => x.id === recordId);
+          if (found) r = { ...found };
+        }
+
+        const body = document.getElementById('modal-body');
+        body.innerHTML = `
+          <h3>${r.id ? '✏️ 내역 수정' : '➕ 내역 직접 입력'}</h3>
+          <div style="display:flex; gap:10px; margin:10px 0;">
+            <button class="btn btn-sm ${r.type==='expense'?'btn-primary':'btn-secondary'}" style="flex:1" onclick="app.setFormType('expense')">지출</button>
+            <button class="btn btn-sm ${r.type==='income'?'btn-primary':'btn-secondary'}" style="flex:1" onclick="app.setFormType('income')">수입</button>
+          </div>
+          <input type="hidden" id="form-id" value="${r.id}">
+          <input type="hidden" id="form-type" value="${r.type}">
+          <input type="hidden" id="form-source" value="${r.source}">
+          <label style="font-size:12px;">금액</label>
+          <input type="number" id="form-amount" placeholder="금액 입력" value="${r.amount}">
+          <label style="font-size:12px;">사용처 / 입금처</label>
+          <input type="text" id="form-merchant" placeholder="사용처 이름" value="${escapeHTML(r.merchant)}" onblur="app.autoCategoryLookup(this.value)">
+          <label style="font-size:12px;">날짜</label>
+          <input type="date" id="form-date" value="${r.date}">
+          <label style="font-size:12px;">카테고리</label>
+          <select id="form-cat"></select>
+          <label style="font-size:12px;">결제수단</label>
+          <select id="form-payment">
+            <option value="카드" ${r.payment==='카드'?'selected':''}>카드</option>
+            <option value="현금" ${r.payment==='현금'?'selected':''}>현금</option>
+            <option value="계좌이체" ${r.payment==='계좌이체'?'selected':''}>계좌이체</option>
+            <option value="간편결제" ${r.payment==='간편결제'?'selected':''}>간편결제</option>
+          </select>
+          <label style="font-size:12px;">메모</label>
+          <input type="text" id="form-memo" placeholder="메모" value="${escapeHTML(r.memo)}">
+          
+          <div id="thumb-preview-box">
+            ${r.thumb ? `<img src="${r.thumb}" style="max-width:100%; height:auto; border-radius:8px; margin-bottom:10px;" onclick="app.zoomImage('${r.thumb}')">` : ''}
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn btn-secondary" style="flex:1" onclick="app.closeModal()">취소</button>
+            ${r.id ? `<button class="btn btn-danger" style="flex:1" onclick="app.deleteRecord('${r.id}')">삭제</button>` : ''}
+            <button class="btn btn-primary" style="flex:1" onclick="app.saveFormRecord()">저장</button>
+          </div>
+        `;
+        this.updateCatSelect(r.type, r.cat);
+        document.getElementById('modal-sheet').classList.add('active');
+      },
+
+      setFormType(type) {
+        document.getElementById('form-type').value = type;
+        this.updateCatSelect(type);
+      },
+      updateCatSelect(type, selectedCat = null) {
+        const select = document.getElementById('form-cat');
+        const list = this.data.categories[type] || [];
+        select.innerHTML = list.map(c => `<option value="${escapeHTML(c)}" ${c===selectedCat?'selected':''}>${escapeHTML(c)}</option>`).join('');
+      },
+
+      autoCategoryLookup(merchant) {
+        const clean = merchant.replace(/\s+/g, '').replace(/\(.*?\)/g, '');
+        if (this.data.autoRules[clean]) {
+          const select = document.getElementById('form-cat');
+          select.value = this.data.autoRules[clean];
+        }
+      },
+
+      closeModal() { document.getElementById('modal-sheet').classList.remove('active'); },
+
+      saveFormRecord() {
+        const id = document.getElementById('form-id').value || 'rec_' + Date.now();
+        const type = document.getElementById('form-type').value;
+        const amount = parseInt(document.getElementById('form-amount').value, 10);
+        const merchant = document.getElementById('form-merchant').value.trim();
+        const date = document.getElementById('form-date').value;
+        const cat = document.getElementById('form-cat').value;
+        const payment = document.getElementById('form-payment').value;
+        const memo = document.getElementById('form-memo').value.trim();
+        const source = document.getElementById('form-source').value || 'manual';
+
+        if (!amount || isNaN(amount)) return alert('금액을 올바르게 입력해주세요.');
+        if (!merchant) return alert('사용처를 입력해주세요.');
+
+        // 중복 체크
+        const existingIdx = this.data.records.findIndex(r => r.id === id);
+        if (existingIdx < 0) {
+          const isDup = this.data.records.some(r => r.date === date && r.amount === amount && r.merchant === merchant);
+          if (isDup && !confirm('동일한 날짜, 금액, 사용처의 내역이 이미 존재합니다. 그래도 저장하시겠습니까?')) return;
+        }
+
+        // 가맹점 자동 분류 학습
+        const cleanMerchant = merchant.replace(/\s+/g, '').replace(/\(.*?\)/g, '');
+        if (cleanMerchant && this.data.autoRules[cleanMerchant] !== cat) {
+          this.data.autoRules[cleanMerchant] = cat;
+          this.toast(`앞으로 '${cleanMerchant}'은(는) ${cat}(으)로 자동 분류해요`);
+        }
+
+        // 예산 초과 체크
+        if (type === 'expense') {
+          const mRecs = this.data.records.filter(r => r.date.startsWith(date.substring(0,7)) && r.type==='expense' && r.id !== id);
+          const newExpTotal = mRecs.reduce((s,r)=>s+r.amount,0) + amount;
+          if (this.data.budgets.total > 0 && newExpTotal > this.data.budgets.total) {
+            this.toast('⚠️ 월 총예산을 초과하였습니다!');
+          }
+        }
+
+        const recordObj = { id, type, date, merchant, amount, cat, payment, memo, source, createdAt: Date.now() };
+        if (existingIdx >= 0) {
+          recordObj.thumb = this.data.records[existingIdx].thumb;
+          this.data.records[existingIdx] = recordObj;
+        } else {
+          this.data.records.push(recordObj);
+        }
+
+        this.saveStorage();
+        this.closeModal();
+
+        if (this.pendingImages.length > 0) {
+          const nextImg = this.pendingImages.shift();
+          this.processImageFile(nextImg);
+        } else {
+          this.render();
+        }
+      },
+
+      deleteRecord(id) {
+        if (!confirm('이 내역을 삭제하시겠습니까?')) return;
+        this.data.records = this.data.records.filter(r => r.id !== id);
+        this.saveStorage();
+        this.closeModal();
+        this.render();
+      },
+
+      processQuickInput() {
+        const text = document.getElementById('quick-input').value.trim();
+        if (!text) return;
+
+        let type = 'expense';
+        if (/(월급|용돈|입금|받았어)/.test(text)) type = 'income';
+
+        let date = new Date().toISOString().substring(0,10);
+        let now = new Date();
+        if (text.includes('어제')) { now.setDate(now.getDate()-1); date = now.toISOString().substring(0,10); }
+        else if (text.includes('그저께')) { now.setDate(now.getDate()-2); date = now.toISOString().substring(0,10); }
+        else if (/(\d+)일\s*전/.test(text)) {
+          const d = parseInt(text.match(/(\d+)일\s*전/)[1]);
+          now.setDate(now.getDate()-d); date = now.toISOString().substring(0,10);
+        } else if (/(\d+)월\s*(\d+)일/.test(text)) {
+          const [, m, d] = text.match(/(\d+)월\s*(\d+)일/);
+          date = `${now.getFullYear()}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        } else if (/(\d+)\/(\d+)/.test(text)) {
+          const [, m, d] = text.match(/(\d+)\/(\d+)/);
+          date = `${now.getFullYear()}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        }
+
+        let amount = '';
+        const amtMatch = text.match(/(\d[\d,]*)\s*원?/) || text.match(/(\d+)\s*만\s*(\d+)?\s*천?원?/) || text.match(/(만|천|백|십|일|이|삼|사|오|육|칠|팔|구)+원/);
+        if (amtMatch) {
+          let numStr = text;
+          numStr = numStr.replace(/일만/g,'10000').replace(/이만/g,'20000').replace(/삼만/g,'30000').replace(/사만/g,'40000').replace(/오만/g,'50000')
+            .replace(/육만/g,'60000').replace(/칠만/g,'70000').replace(/팔만/g,'80000').replace(/구만/g,'90000').replace(/만/g,'0000')
+            .replace(/오천/g,'5000').replace(/삼천/g,'3000').replace(/이천/g,'2000').replace(/천/g,'000');
+          const cleanNum = numStr.match(/\d+/g);
+          if (cleanNum) amount = parseInt(cleanNum.join(''), 10);
+        }
+
+        let payment = '카드';
+        if (text.includes('현금')) payment = '현금';
+        else if (text.includes('계좌이체') || text.includes('송금')) payment = '계좌이체';
+        else if (text.includes('카카오페이') || text.includes('페이')) payment = '간편결제';
+
+        let memo = '';
+        if (/(점심|저녁|아침|회식|간식)/.test(text)) {
+          memo = text.match(/(점심|저녁|아침|회식|간식)/)[0];
+        }
+
+        let merchant = text
+          .replace(/(어제|그저께|\d+일 전|\d+월 \d+일|\d+\/\d+|오늘)/g, '')
+          .replace(/(\d[\d,]*원?|\d+만원?)/g, '')
+          .replace(/(현금|카드|계좌이체|카카오페이|송금|입금|받았어|월급|용돈)/g, '')
+          .replace(/(에서|으로|로)\s*$/, '')
+          .replace(/(점심|저녁|아침|회식|간식)/g, '')
+          .trim();
+
+        document.getElementById('quick-input').value = '';
+        this.openEditForm();
+        document.getElementById('form-type').value = type;
+        document.getElementById('form-amount').value = amount;
+        document.getElementById('form-merchant').value = merchant;
+        document.getElementById('form-date').value = date;
+        document.getElementById('form-payment').value = payment;
+        document.getElementById('form-memo').value = memo;
+        document.getElementById('form-source').value = 'quick';
+        this.autoCategoryLookup(merchant);
+      },
+
+      openPasteSMS() {
+        this.closeAddSheet();
+        const body = document.getElementById('modal-body');
+        body.innerHTML = `
+          <h3>💬 카드/은행 문자 붙여넣기</h3>
+          <p style="font-size:12px; color:var(--subtext); margin-bottom:8px;">여러 건을 한꺼번에 붙여넣어도 되며 빈 줄이나 [Web발신]으로 구분됩니다.</p>
+          <textarea id="sms-text" style="height:150px;" placeholder="문자 내역을 붙여넣으세요..."></textarea>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-secondary" style="flex:1" onclick="app.closeModal()">취소</button>
+            <button class="btn btn-primary" style="flex:1" onclick="app.processSMSList()">읽기</button>
+          </div>
+        `;
+        document.getElementById('modal-sheet').classList.add('active');
+      },
+
+      processSMSList() {
+        const raw = document.getElementById('sms-text').value;
+        const blocks = raw.split(/(?=\[Web발신\]|\n\n+)/).map(b => b.trim()).filter(Boolean);
+        const parsedResults = [];
+
+        for (const sms of blocks) {
+          if (/(인증번호|광고)/.test(sms)) continue;
+          if (!/(승인|결제|출금|이용|취소|환불|입금|송금|보냈어요|받았어요)/.test(sms)) continue;
+          if (/(ATM|현금인출|카드대금)/.test(sms)) continue; // 이중계산 방지
+
+          let type = 'expense';
+          let payment = '카드';
+          let cat = this.data.categories.expense[0];
+
+          if (/(입금|받았어요)/.test(sms)) {
+            type = 'income';
+            payment = '계좌이체';
+            cat = /(급여|월급)/.test(sms) ? '💰 급여' : '🪙 기타수입';
+          } else if (/(출금|이체|송금|보냈어요)/.test(sms)) {
+            payment = '계좌이체';
+          } else if (sms.includes('현금영수증')) {
+            payment = '현금';
+          }
+
+          let amount = null;
+          const amtMatch = sms.replace(/(누적|잔액|한도|포인트|적립)[\s\S]*?\d+원/g, '').match(/([\d,]+)\s*원/);
+          if (amtMatch) amount = parseInt(amtMatch[1].replace(/,/g, ''), 10);
+
+          let memo = '';
+          if (sms.includes('USD') || sms.includes('외화')) {
+            amount = null;
+            memo = '외화 결제 건 (수동 입력 필요)';
+          }
+
+          let date = new Date().toISOString().substring(0,10);
+          const dateMatch = sms.match(/(\d{2,4})[\/\.](\d{1,2})[\/\.](\d{1,2})/) || sms.match(/(\d{1,2})\/(\d{1,2})/);
+          if (dateMatch) {
+            const now = new Date();
+            if (dateMatch.length === 4) {
+              date = `${dateMatch[1]}-${String(dateMatch[2]).padStart(2,'0')}-${String(dateMatch[3]).padStart(2,'0')}`;
+            } else {
+              let year = now.getFullYear();
+              let d = new Date(year, dateMatch[1]-1, dateMatch[2]);
+              if (d > now) year--;
+              date = `${year}-${String(dateMatch[1]).padStart(2,'0')}-${String(dateMatch[2]).padStart(2,'0')}`;
+            }
+          }
+
+          let merchant = sms
+            .replace(/\[Web발신\]/g,'')
+            .replace(/.*카드\d*승인/g,'')
+            .replace(/홍\*동님|일시불|할부|\d{2}:\d{2}/g,'')
+            .replace(/([\d,]+)\s*원/g,'')
+            .replace(/(승인|결제|출금|이용|취소|환불|입금|송금)/g,'')
+            .split('\n')[0].trim();
+
+          // 취소/환불 상쇄 처리
+          if (/(취소|환불)/.test(sms) && amount) {
+            const matchIndex = this.data.records.findIndex(r => r.amount === amount && (r.merchant.includes(merchant) || merchant.includes(r.merchant)));
+            if (matchIndex >= 0) {
+              const matchedRec = this.data.records[matchIndex];
+              if (confirm(`취소 문자를 감지하였습니다.\n기존 내역 [${matchedRec.date} ${matchedRec.merchant} ${formatNum(matchedRec.amount)}원] 을 삭제하시겠습니까?`)) {
+                this.data.records.splice(matchIndex, 1);
+                this.saveStorage();
+                this.toast('취소 내역 삭제 완료');
+              }
+              continue;
+            }
+          }
+
+          if (amount || merchant) {
+            parsedResults.push({ type, date, merchant, amount, cat, payment, memo, source: 'sms' });
+          }
+        }
+
+        this.closeModal();
+        if (parsedResults.length > 0) {
+          this.applyBatchSMSResults(parsedResults);
+        } else {
+          alert('유효한 결제/입출금 문자를 찾지 못했습니다.');
+        }
+      },
+
+      applyBatchSMSResults(list) {
+        const item = list.shift();
+        this.openEditForm();
+        document.getElementById('form-type').value = item.type;
+        document.getElementById('form-amount').value = item.amount || '';
+        document.getElementById('form-merchant').value = item.merchant;
+        document.getElementById('form-date').value = item.date;
+        document.getElementById('form-payment').value = item.payment;
+        document.getElementById('form-memo').value = item.memo;
+        document.getElementById('form-source').value = 'sms';
+        this.autoCategoryLookup(item.merchant);
+
+        if (list.length > 0) {
+          const btn = document.querySelector('#modal-body .btn-primary');
+          btn.textContent = `저장하고 다음 (${list.length}건 남음)`;
+          btn.onclick = () => {
+            this.saveFormRecord();
+            this.applyBatchSMSResults(list);
+          };
+        }
+      },
+
+      triggerCamera() { document.getElementById('file-cam').click(); },
+      triggerGallery() { document.getElementById('file-gal').click(); },
+
+      handleImageUpload(e) {
+        this.closeAddSheet();
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
+        this.pendingImages = files;
+        const first = this.pendingImages.shift();
+        this.processImageFile(first);
+      },
+
+      async processImageFile(file) {
+        this.toast('영수증/결제화면 이미지 분석 중...');
+        const resized = await this.resizeImage(file, 2000, 0.85);
+        const thumb = await this.resizeImage(file, 240, 0.7);
+
+        const provider = this.data.aiConfig.provider;
+        let parsed = null;
+
+        try {
+          if (provider === 'gemini' && this.data.aiConfig.geminiKey) {
+            parsed = await this.callGeminiAPI(resized.base64);
+          } else if (provider === 'claude' && this.data.aiConfig.claudeKey) {
+            parsed = await this.callClaudeAPI(resized.base64);
+          } else if (provider === 'ocr') {
+            parsed = await this.callLocalOCR(resized.dataUrl);
+          }
+        } catch (err) {
+          alert('인식에 실패하였습니다: ' + err.message + '\n직접 입력 화면으로 이동합니다.');
+        }
+
+        this.openEditForm();
+        const preview = document.getElementById('thumb-preview-box');
+        preview.innerHTML = `<img src="${thumb.dataUrl}" style="max-width:100%; height:auto; border-radius:8px; margin-bottom:10px;" onclick="app.zoomImage('${resized.dataUrl}')">`;
+
+        if (parsed) {
+          if (parsed.amount) document.getElementById('form-amount').value = parsed.amount;
+          if (parsed.merchant) document.getElementById('form-merchant').value = parsed.merchant;
+          if (parsed.date) document.getElementById('form-date').value = parsed.date;
+          if (parsed.payment) document.getElementById('form-payment').value = parsed.payment;
+          if (parsed.category && this.data.categories.expense.includes(parsed.category)) {
+            document.getElementById('form-cat').value = parsed.category;
+          }
+          document.getElementById('form-source').value = 'receipt';
+          if (parsed.merchant) this.autoCategoryLookup(parsed.merchant);
+        }
+
+        // 썸네일 임시 보관
+        const saveBtn = document.querySelector('#modal-body .btn-primary');
+        const origSave = saveBtn.onclick;
+        saveBtn.onclick = () => {
+          const recId = document.getElementById('form-id').value || 'rec_' + Date.now();
+          const found = this.data.records.find(r => r.id === recId);
+          if (found) found.thumb = thumb.dataUrl;
+          this.saveFormRecord();
+        };
+      },
+
+      resizeImage(file, maxSide, quality) {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              let w = img.width, h = img.height;
+              if (w > maxSide || h > maxSide) {
+                if (w > h) { h = Math.round((h * maxSide) / w); w = maxSide; }
+                else { w = Math.round((w * maxSide) / h); h = maxSide; }
+              }
+              const canvas = document.createElement('canvas');
+              canvas.width = w; canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, w, h);
+              const dataUrl = canvas.toDataURL('image/jpeg', quality);
+              const base64 = dataUrl.split(',')[1];
+              resolve({ dataUrl, base64 });
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+      },
+
+      async callGeminiAPI(base64) {
+        const model = this.data.aiConfig.geminiModel || 'gemini-3.5-flash';
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        const prompt = `한국어 영수증·결제화면 판독기입니다. JSON 객체 하나만 출력: {merchant, date(YYYY-MM-DD), amount(할인·포인트 차감 후 최종 결제금액, 숫자만), category(앱의 카테고리 이름 중 하나), payment(카드|현금|계좌이체|간편결제), items(최대 8개), confidence(0~1)}. 날짜가 없으면 오늘 날짜, 읽을 수 없는 값은 null.`;
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.data.aiConfig.geminiKey },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: 'image/jpeg', data: base64 } }] }],
+            generationConfig: { temperature: 0, responseMimeType: 'application/json' }
+          })
+        });
+        const data = await res.json();
+        const text = data.candidates[0].content.parts[0].text;
+        const cleanJson = text.replace(/```json|```/g, '').trim();
+        return JSON.parse(cleanJson);
+      },
+
+      async callClaudeAPI(base64) {
+        const model = this.data.aiConfig.claudeModel || 'claude-haiku-5-5';
+        const url = 'https://api.anthropic.com/v1/messages';
+        const prompt = `한국어 영수증·결제화면 판독기입니다. JSON 객체 하나만 출력: {merchant, date(YYYY-MM-DD), amount(할인·포인트 차감 후 최종 결제금액, 숫자만), category, payment, confidence}. 읽을 수 없으면 null.`;
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.data.aiConfig.claudeKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model, max_tokens: 1000,
+            messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: base64 } }, { type: 'text', text: prompt }] }]
+          })
+        });
+        const data = await res.json();
+        const text = data.content[0].text;
+        const cleanJson = text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1);
+        return JSON.parse(cleanJson);
+      },
+
+      async callLocalOCR(dataUrl) {
+        this.toast('기기 내 OCR 읽는 중... (정확도가 낮을 수 있습니다)');
+        const worker = await Tesseract.createWorker('kor+eng');
+        const ret = await worker.recognize(dataUrl);
+        await worker.terminate();
+
+        const text = ret.data.text;
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        const merchant = lines[0] || '알 수 없음';
+        
+        let amount = null;
+        const amtMatch = text.match(/(합계|결제금액|금액)[\s:]*([\d,]+)/) || text.match(/([\d,]{3,})원/);
+        if (amtMatch) amount = parseInt(amtMatch[2] ? amtMatch[2].replace(/,/g,'') : amtMatch[1].replace(/,/g,''), 10);
+
+        let date = new Date().toISOString().substring(0,10);
+        const dateMatch = text.match(/(\d{4})[\.\-\/](\d{2})[\.\-\/](\d{2})/);
+        if (dateMatch) date = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+
+        return { merchant, amount, date, payment: '카드', category: null };
+      },
+
+      async testAIConnection() {
+        const provider = document.getElementById('setting-ai-provider').value;
+        if (provider === 'none') return alert('선택된 AI 방식이 없습니다.');
+        if (provider === 'ocr') return alert('기기 내 OCR은 API 키가 필요 없습니다.');
+        this.toast('연결 테스트 중...');
+        try {
+          if (provider === 'gemini') {
+            const key = document.getElementById('setting-gemini-key').value;
+            const model = document.getElementById('setting-gemini-model').value || 'gemini-3.5-flash';
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${key}`);
+            if (res.ok) alert('✅ Gemini API 연결 성공!'); else throw new Error(res.statusText);
+          }
+        } catch(e) {
+          alert('❌ 연결 실패: ' + e.message);
+        }
+      },
+
+      zoomImage(url) {
+        const body = document.getElementById('modal-body');
+        body.innerHTML = `
+          <div style="text-align:center;">
+            <img src="${url}" style="max-width:100%; height:auto; border-radius:8px;">
+            <button class="btn btn-secondary" style="margin-top:10px;" onclick="app.closeModal()">닫기</button>
+          </div>
+        `;
+        document.getElementById('modal-sheet').classList.add('active');
+      },
+
+      processRecurring() {
+        const today = new Date();
+        const curY = today.getFullYear();
+        const curM = today.getMonth() + 1;
+        const curD = today.getDate();
+
+        this.data.recurring.forEach(rec => {
+          let lastAdded = rec.lastAdded ? new Date(rec.lastAdded) : new Date(curY, curM - 2, 1);
+          let checkY = lastAdded.getFullYear();
+          let checkM = lastAdded.getMonth() + 1;
+
+          while (checkY < curY || (checkY === curY && checkM <= curM)) {
+            const targetDateStr = `${checkY}-${String(checkM).padStart(2,'0')}-${String(rec.day).padStart(2,'0')}`;
+            if (new Date(targetDateStr) <= today) {
+              const exists = this.data.records.some(r => r.merchant === rec.merchant && r.date === targetDateStr && r.amount === rec.amount);
+              if (!exists) {
+                this.data.records.push({
+                  id: 'rec_auto_' + Date.now() + '_' + Math.random(),
+                  type: 'expense',
+                  date: targetDateStr,
+                  merchant: rec.merchant,
+                  amount: rec.amount,
+                  cat: rec.cat,
+                  payment: '카드',
+                  memo: '자동 고정지출',
+                  source: 'recurring',
+                  createdAt: Date.now()
+                });
+              }
+              rec.lastAdded = targetDateStr;
+            }
+            checkM++;
+            if (checkM > 12) { checkM = 1; checkY++; }
+          }
+        });
+        this.saveStorage();
+      },
+
+      checkRepeatExpenses() {
+        // 6개월 데이터 탐색 후 자동 팝업 대상 계산
+      },
+      getRepeatAlerts() {
+        const result = [];
+        const map = {};
+        const months6 = [];
+        for (let i = 0; i < 6; i++) months6.push(this.getShiftedMonth(-i));
+
+        this.data.records.filter(r => r.type==='expense').forEach(r => {
+          const key = r.merchant;
+          if (this.data.ignoredRepeat.includes(key)) return;
+          if (this.data.recurring.some(rec => rec.merchant === key)) return;
+          map[key] = map[key] || [];
+          map[key].push(r);
+        });
+
+        Object.entries(map).forEach(([m, recs]) => {
+          if (recs.length >= 2) {
+            const sorted = recs.sort((a,b)=>new Date(b.date)-new Date(a.date));
+            if (sorted[0].amount === sorted[1].amount) {
+              result.push({ merchant: m, amount: sorted[0].amount, cat: sorted[0].cat });
+            }
+          }
+        });
+        return result.slice(0, 3);
+      },
+      acceptRepeat(merchant, amount, cat) {
+        this.data.recurring.push({ merchant, amount, day: 1, cat });
+        this.saveStorage();
+        this.toast(`'${merchant}' 고정지출 등록 완료`);
+        this.render();
+      },
+      ignoreRepeat(merchant) {
+        this.data.ignoredRepeat.push(merchant);
+        this.saveStorage();
+        this.render();
+      },
+
+      openAddRecurringModal() {
+        const body = document.getElementById('modal-body');
+        body.innerHTML = `
+          <h3>➕ 고정지출 / 구독 등록</h3>
+          <input type="text" id="rec-merchant" placeholder="이름 (예: 넷플릭스)">
+          <input type="number" id="rec-amount" placeholder="금액">
+          <input type="number" id="rec-day" placeholder="매월 결제일 (1~31)" min="1" max="31">
+          <select id="rec-cat">${this.data.categories.expense.map(c=>`<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`).join('')}</select>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn btn-secondary" style="flex:1" onclick="app.closeModal()">취소</button>
+            <button class="btn btn-primary" style="flex:1" onclick="app.saveRecurring()">등록</button>
+          </div>
+        `;
+        document.getElementById('modal-sheet').classList.add('active');
+      },
+      saveRecurring() {
+        const merchant = document.getElementById('rec-merchant').value.trim();
+        const amount = parseInt(document.getElementById('rec-amount').value, 10);
+        const day = parseInt(document.getElementById('rec-day').value, 10);
+        const cat = document.getElementById('rec-cat').value;
+        if (!merchant || !amount || !day) return alert('모든 항목을 입력해주세요.');
+
+        this.data.recurring.push({ merchant, amount, day, cat });
+        this.saveStorage();
+        this.closeModal();
+        this.processRecurring();
+        this.render();
+      },
+      deleteRecurring(idx) {
+        this.data.recurring.splice(idx, 1);
+        this.saveStorage();
+        this.render();
+      },
+
+      openManageCatModal() {
+        const body = document.getElementById('modal-body');
+        body.innerHTML = `
+          <h3>📂 카테고리 추가 / 삭제</h3>
+          <div style="margin-bottom:10px;">
+            <input type="text" id="new-cat-name" placeholder="새 카테고리 이름(이모지 포함)">
+            <select id="new-cat-type"><option value="expense">지출</option><option value="income">수입</option></select>
+            <button class="btn btn-primary btn-sm" onclick="app.addCategory()">추가</button>
+          </div>
+          <div style="max-height:200px; overflow-y:auto;">
+            ${this.data.categories.expense.map(c => `
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:14px;">
+                <span>[지출] ${escapeHTML(c)}</span>
+                <button class="btn btn-sm btn-danger" style="padding:2px 6px; min-height:24px;" onclick="app.deleteCategory('expense','${escapeHTML(c)}')">삭제</button>
+              </div>
+            `).join('')}
+            ${this.data.categories.income.map(c => `
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:14px;">
+                <span>[수입] ${escapeHTML(c)}</span>
+                <button class="btn btn-sm btn-danger" style="padding:2px 6px; min-height:24px;" onclick="app.deleteCategory('income','${escapeHTML(c)}')">삭제</button>
+              </div>
+            `).join('')}
+          </div>
+          <button class="btn btn-secondary" style="margin-top:10px;" onclick="app.closeModal()">닫기</button>
+        `;
+        document.getElementById('modal-sheet').classList.add('active');
+      },
+      addCategory() {
+        const name = document.getElementById('new-cat-name').value.trim();
+        const type = document.getElementById('new-cat-type').value;
+        if (!name) return;
+        this.data.categories[type].push(name);
+        this.saveStorage();
+        this.openManageCatModal();
+      },
+      deleteCategory(type, name) {
+        this.data.categories[type] = this.data.categories[type].filter(c => c !== name);
+        this.saveStorage();
+        this.openManageCatModal();
+      },
+
+      async togglePinSetup() {
+        if (this.data.pin) {
+          if (confirm('PIN 잠금을 해제하시겠습니까?')) {
+            this.data.pin = null;
+            this.saveStorage();
+            this.toast('PIN 잠금이 해제되었습니다.');
+            this.render();
+          }
+        } else {
+          const pin = prompt('사용할 4자리 PIN 번호를 입력하세요:');
+          if (pin && pin.length === 4 && /^\d+$/.test(pin)) {
+            this.data.pin = await sha256(pin);
+            this.saveStorage();
+            this.toast('PIN 잠금이 설정되었습니다.');
+            this.render();
+          } else {
+            alert('4자리 숫자만 입력 가능합니다.');
+          }
+        }
+      },
+      showPinLock() {
+        const screen = document.getElementById('pin-screen');
+        const pad = document.getElementById('pin-pad');
+        screen.style.display = 'flex';
+        this.pinInput = '';
+        this.updatePinDots();
+
+        let html = '';
+        [1,2,3,4,5,6,7,8,9, 'C', 0, '←'].forEach(k => {
+          html += `<button class="pin-btn" onclick="app.pressPin('${k}')">${k}</button>`;
+        });
+        pad.innerHTML = html;
+      },
+      async pressPin(key) {
+        if (key === 'C') this.pinInput = '';
+        else if (key === '←') this.pinInput = this.pinInput.slice(0, -1);
+        else if (this.pinInput.length < 4) this.pinInput += key;
+        
+        this.updatePinDots();
+
+        if (this.pinInput.length === 4) {
+          const hashed = await sha256(this.pinInput);
+          if (hashed === this.data.pin) {
+            document.getElementById('pin-screen').style.display = 'none';
+          } else {
+            alert('PIN 번호가 일치하지 않습니다.');
+            this.pinInput = '';
+            this.updatePinDots();
+          }
+        }
+      },
+      updatePinDots() {
+        const dots = document.querySelectorAll('.pin-dot');
+        dots.forEach((d, i) => d.classList.toggle('filled', i < this.pinInput.length));
+      },
+
+      exportCSV() {
+        let csv = '\uFEFF날짜,구분,사용처/입금처,금액,카테고리,결제수단,메모,출처\n';
+        this.data.records.forEach(r => {
+          csv += `"${r.date}","${r.type}","${r.merchant}",${r.amount},"${r.cat}","${r.payment}","${r.memo || ''}","${r.source}"\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `Expensetracker_${new Date().toISOString().substring(0,10)}.csv`;
+        a.click();
+      },
+      importCSV(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const lines = evt.target.result.split('\n').slice(1);
+          let count = 0;
+          lines.forEach(line => {
+            const cols = line.split(',').map(c => c.replace(/^"|"$/g, '').trim());
+            if (cols.length >= 6 && cols[0]) {
+              this.data.records.push({
+                id: 'rec_csv_' + Date.now() + '_' + Math.random(),
+                date: cols[0],
+                type: cols[1] || 'expense',
+                merchant: cols[2],
+                amount: parseInt(cols[3], 10) || 0,
+                cat: cols[4],
+                payment: cols[5],
+                memo: cols[6] || '',
+                source: 'import',
+                createdAt: Date.now()
+              });
+              count++;
+            }
+          });
+          this.saveStorage();
+          alert(`${count}건의 내역을 가져왔습니다.`);
+          this.render();
+        };
+        reader.readAsText(file);
+      },
+
+      exportBackup() {
+        const backupData = JSON.parse(JSON.stringify(this.data));
+        delete backupData.aiConfig;
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `Expensetracker_Backup_${new Date().toISOString().substring(0,10)}.json`;
+        a.click();
+      },
+      importBackup(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const imported = JSON.parse(evt.target.result);
+            this.data = { ...this.data, ...imported };
+            this.saveStorage();
+            alert('백업 데이터 복원 완료!');
+            this.render();
+          } catch(err) {
+            alert('잘못된 백업 파일 형식입니다.');
+          }
+        };
+        reader.readAsText(file);
+      },
+
+      seedSampleData() {
+        const today = new Date().toISOString().substring(0,8);
+        this.data.records = [
+          { id: 's1', type: 'expense', date: today+'01', merchant: '스타벅스', amount: 5500, cat: '☕ 카페·간식', payment: '카드', memo: '아메리카노', source: 'manual', createdAt: Date.now() },
+          { id: 's2', type: 'expense', date: today+'03', merchant: 'GS25', amount: 12000, cat: '🛒 생활·마트', payment: '간편결제', memo: '도시락 및 음료', source: 'manual', createdAt: Date.now() },
+          { id: 's3', type: 'income', date: today+'05', merchant: '(주)회사', amount: 3200000, cat: '💰 급여', payment: '계좌이체', memo: '월급', source: 'manual', createdAt: Date.now() },
+          { id: 's4', type: 'expense', date: today+'07', merchant: '김밥천국', amount: 8500, cat: '🍽️ 식비', payment: '카드', memo: '점심식사', source: 'manual', createdAt: Date.now() },
+          { id: 's5', type: 'expense', date: today+'10', merchant: '카카오T 택시', amount: 14200, cat: '🚌 교통', payment: '카드', memo: '야근 귀가', source: 'sms', createdAt: Date.now() }
+        ];
+        this.saveStorage();
+        this.toast('샘플 데이터 5건이 생성되었습니다.');
+        this.render();
+      },
+      clearAllData() {
+        if (confirm('정말로 모든 데이터를 삭제하시겠습니까? (1차 확인)')) {
+          if (confirm('복구할 수 없습니다. 계속하시겠습니까? (2차 확인)')) {
+            localStorage.removeItem('et_data');
+            location.reload();
+          }
+        }
+      },
+
+      shiftMonth(offset) {
+        const [y, m] = this.currentMonth.split('-').map(Number);
+        const d = new Date(y, m - 1 + offset, 1);
+        this.currentMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        this.render();
+      },
+      getShiftedMonth(offset) {
+        const [y, m] = this.currentMonth.split('-').map(Number);
+        const d = new Date(y, m - 1 + offset, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      }
+    };
+
+    window.onload = () => app.init();
+  </script>
+</body>
+</html>
